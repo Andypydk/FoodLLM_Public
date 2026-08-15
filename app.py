@@ -5,7 +5,6 @@ from io import BytesIO
 import streamlit as st
 
 from llm_service import generate_recipes
-from image_service import generate_recipe_image
 from vision_service import recognize_fridge_items
 from test_cases import TEST_CASES
 from validators import validate_recipe
@@ -88,9 +87,11 @@ if "last_generate_time" not in st.session_state:
 # API 設定
 # ============================================================
 
-api_key = get_secret("OPENAI_API_KEY")
+api_key = get_secret(
+    "GEMINI_API_KEY"
+)
 
-model = "gpt-5.6-luna"
+model = "gemini-3.5-flash-lite"
 
 
 
@@ -108,7 +109,7 @@ with st.sidebar:
 
     
      # 公開免費版固定使用低成本模型
-    model = "gpt-5.6-luna"
+    model = "gemini-3.5-flash-lite"
 
     page = st.radio(
         "功能選單",
@@ -123,12 +124,12 @@ with st.sidebar:
     st.markdown("### 系統狀態")
 
     if api_key:
-        st.success("AI 服務已設定")
+        st.success("Gemini API 已設定")
     else:
-        st.error("尚未設定 API 金鑰")
+        st.error("尚未設定 Gemini API 金鑰")
 
-# 公開免費版固定使用低成本模型
-model = "gpt-5.6-luna"
+# 公開免費版使用 Gemini Free Tier
+model = "gemini-3.5-flash-lite"
 
 st.caption(
     "🤖 AI 模式：公開免費版"
@@ -223,9 +224,8 @@ st.write(
 if not api_key:
 
     st.error(
-        "尚未設定 OPENAI_API_KEY。"
-        "請先完成 API 金鑰設定。"
-    )
+    "尚未設定 GEMINI_API_KEY。"
+)
 
 
 # ============================================================
@@ -306,7 +306,7 @@ with left:
                 if not api_key:
 
                     st.error(
-                        "尚未設定 OPENAI_API_KEY。"
+                        "尚未設定 GEMINI_API_KEY。"
                     )
 
                 else:
@@ -318,10 +318,11 @@ with left:
                         ):
 
                             vision_result = recognize_fridge_items(
-                                image_bytes=uploaded_file.getvalue(),
-                                api_key=api_key,
-                                model=model
-                            )
+    image_bytes=uploaded_file.getvalue(),
+    api_key=api_key,
+    model=model,
+    mime_type=uploaded_file.type
+)
 
 
                         st.session_state.vision_result = (
@@ -604,13 +605,11 @@ with right:
     # 公開版每次只產生一道料理，避免 API 使用量過高
     recipe_count = 1
 
-    generate_image = st.checkbox(
-    "🖼️ 產生 AI 料理示意圖",
-    value=False,
-    help=(
-        "產生圖片需要較長等待時間；"
-        "若只需要料理建議，可以保持關閉。"
-    )
+    # 完全免費公開版暫停 AI 圖片生成
+generate_image = False
+
+st.info(
+    "🖼️ 完全免費公開版目前暫不提供 AI 料理圖片生成。"
 )
     
 
@@ -753,42 +752,7 @@ if generate_button:
             ]
 
 
-            # =================================================
-            # 產生料理圖片
-            # =================================================
-
-            recipe_image = None
-
-
-            if generate_image:
-
-                try:
-
-                    with st.spinner(
-                        f"🖼️ 正在製作"
-                        f"「{recipe.recipe_name}」"
-                        f"料理示意圖..."
-                    ):
-
-                        recipe_image = generate_recipe_image(
-                            recipe_name=recipe.recipe_name,
-                            ingredients=ingredient_names,
-                            cuisine=recipe.cuisine,
-                            api_key=api_key
-                        )
-
-
-                except Exception as image_error:
-
-                    st.warning(
-                        "料理圖片目前無法產生，"
-                        "但不影響食譜內容。"
-                    )
-
-                    # 開發階段先顯示真正錯誤
-                    st.caption(
-                        f"圖片錯誤資訊：{image_error}"
-                    )
+            
 
 
             # =================================================
@@ -806,32 +770,13 @@ if generate_button:
             # -------------------------------------------------
 
             with image_col:
+                st.info(
+        "🖼️ 完全免費公開版目前不產生 AI 料理圖片。"
+    )
 
-                if recipe_image:
-
-                    st.image(
-                        BytesIO(
-                            recipe_image
-                        ),
-                        caption=(
-                            f"{recipe.recipe_name}"
-                            "｜AI 料理示意圖"
-                        ),
-                        use_container_width=True
-                    )
-
-                elif generate_image:
-
-                    st.info(
-                        "🖼️ 本料理目前沒有可顯示的示意圖片。"
-                    )
-
-                else:
-
-                    st.info(
-                        "🖼️ 已關閉料理圖片功能。"
-                    )
-
+                st.caption(
+        "料理內容、食材辨識與食譜推薦仍可正常使用。"
+    )
 
             # -------------------------------------------------
             # 右側資訊
@@ -1091,9 +1036,14 @@ if generate_button:
                 )
 
 
-        # ====================================================
+
+    # 前面的 Gemini 料理產生
+    # 前面的食譜顯示
+    # ...
+
+        # ========================================================
         # 整體說明
-        # ====================================================
+        # ========================================================
 
         st.divider()
 
@@ -1105,18 +1055,13 @@ if generate_button:
             result.overall_note
         )
 
-
         st.caption(
-            "⚠️ AI 料理與料理示意圖僅供參考。"
+            "⚠️ AI 產生的料理內容僅供參考。"
             "若涉及嚴重過敏、疾病飲食、"
             "嬰幼兒飲食或特殊醫療需求，"
             "請依食品標示與專業人員建議確認。"
         )
 
-
-    # ========================================================
-    # AI 發生錯誤
-    # ========================================================
 
     except Exception as error:
 
@@ -1128,7 +1073,6 @@ if generate_button:
             "AI 服務目前無法完成這次請求。"
         )
 
-        # 目前是開發階段，所以保留詳細錯誤方便你除錯
         st.caption(
             f"錯誤資訊：{error}"
         )
