@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment
+.venv/
+venv/
+
+# Secrets
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# VS Code
+.vscode/
+
+# Generated files
+test_recipe.png
+
+# OS
+.DS_Store
+Thumbs.db
